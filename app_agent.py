@@ -1,12 +1,17 @@
-from langchain_openai import ChatOpenAI
-from langchain_core.messages import HumanMessage
-from dotenv import load_dotenv
-
+# app_agent.py
 import os
-load_dotenv()
+from langchain_core.messages import HumanMessage
 
+_llm = None
+def _llm():
+    # lazy init to avoid crashing on import
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
 
-llm = ChatOpenAI(model="gpt-4o-mini")  # or your preferred model/provider
 def run_agent(prompt: str) -> str:
-    resp = llm.invoke([HumanMessage(content=prompt)])
-    return resp.content
+    try:
+        resp = _llm().invoke([HumanMessage(content=prompt)])
+        return resp.content
+    except Exception as e:
+        # Never hard-crash Cloud Run on missing creds: degrade instead
+        return f"[fallback] {prompt}"
